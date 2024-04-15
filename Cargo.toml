@@ -7,7 +7,7 @@ categories = ["api-bindings", "network-programming"]
 description = "NGINX robot access module"
 repository = "https://github.com/glyn/nginx_robot_access"
 homepage = "https://github.com/nglyn/nginx_robot_access"
-license = "GPL-3.0-or-later"
+license = "Apache-2.0"
 crate-type = ["cdylib"]
 keywords = ["nginx", "module"]
 
