@@ -2,6 +2,8 @@
 
 **WORK IN PROGRESS**
 
+This NGINX module enforces the rules in `robots.txt` for web crawlers that choose
+to disregard those rules.
 
 ### Contributing
 
