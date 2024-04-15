@@ -1,0 +1,23 @@
+[package]
+name = "nginx-sys"
+version = "0.5.0"
+edition = "2021"
+categories = ["external-ffi-bindings"]
+description = "FFI bindings to NGINX"
+repository = "https://github.com/nginxinc/ngx-rust"
+homepage = "https://github.com/nginxinc/ngx-rust"
+license = "Apache-2.0"
+keywords = ["nginx", "ffi", "sys"]
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.69.4"
+which = "6.0.0"
+duct = "0.13.7"
+ureq = { version = "2.9.6", features = ["tls"] }
+flate2 = "1.0.28"
+tar = "0.4.40"

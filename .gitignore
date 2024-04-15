@@ -1,5 +1,7 @@
 /target
 
+/nginx-sys/.cache
+
 
 # Added by cargo
 #

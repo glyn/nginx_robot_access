@@ -2,7 +2,24 @@
 name = "nginx_robot_access"
 version = "0.1.0"
 edition = "2021"
+autoexamples = false
+categories = ["api-bindings", "network-programming"]
+description = "NGINX robot access module"
+repository = "https://github.com/glyn/nginx_robot_access"
+homepage = "https://github.com/nglyn/nginx_robot_access"
+license = "GPL-3.0-or-later"
+crate-type = ["cdylib"]
+keywords = ["nginx", "module"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dev-dependencies]
+aws-sign-v4 = "0.2.0"
+chrono = "0.4.23"
+http = "0.2.12"
+libc = "0.2.140"
 
 [dependencies]
+nginx-sys = { path = "nginx-sys", version = "0.5.0"}
+tokio = { version = "1.33.0", features = ["full"] }
+
+[features]
+linux = []
