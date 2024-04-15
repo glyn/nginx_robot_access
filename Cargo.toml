@@ -2,24 +2,20 @@
 name = "nginx_robot_access"
 version = "0.1.0"
 edition = "2021"
-autoexamples = false
-categories = ["api-bindings", "network-programming"]
 description = "NGINX robot access module"
+categories = ["access-control", "network-programming"]
+keywords = ["nginx", "robots.txt"]
 repository = "https://github.com/glyn/nginx_robot_access"
 homepage = "https://github.com/nglyn/nginx_robot_access"
 license = "Apache-2.0"
-crate-type = ["cdylib"]
-keywords = ["nginx", "module"]
+autoexamples = false
 
-[dev-dependencies]
-aws-sign-v4 = "0.2.0"
-chrono = "0.4.23"
-http = "0.2.12"
-libc = "0.2.140"
+[lib]
+crate-type = ["cdylib"]
+path = "src"
 
 [dependencies]
-nginx-sys = { path = "nginx-sys", version = "0.5.0"}
+ngx = "0.4.1"
+nginx-sys = "0.2.1"
 tokio = { version = "1.33.0", features = ["full"] }
 
-[features]
-linux = []
