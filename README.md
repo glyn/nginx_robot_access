@@ -1,9 +1,12 @@
 # NGINX robot access module
 
-**WORK IN PROGRESS**
-
 This NGINX module enforces the rules in `robots.txt` for web crawlers that choose
 to disregard those rules.
+
+### WORK IN PROGRESS
+
+The current code builds but has not been tested and is missing major pieces of function.
+See [Configuration support](https://github.com/glyn/nginx_robot_access/issues/1) in particular.
 
 ### Contributing
 
