@@ -1,9 +1,7 @@
 use std::fs;
 
 pub trait AccessController {
-    // TODO: determine type of path
-    // TODO: can we use a more standard type than NgxStr?
-    fn allow(userAgent : &NgxStr, /* HTTP path*/ ) -> bool
+    fn allow(userAgent : &str, path : &str ) -> bool
 }
 
 // parse takes the path of a robots.txt file and returns

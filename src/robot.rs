@@ -7,6 +7,7 @@ use ngx::ffi::{
 use ngx::http::MergeConfigError;
 use ngx::{core, core::Status, http, http::HTTPModule};
 use ngx::{http_request_handler, ngx_log_debug_http, ngx_modules, ngx_null_command, ngx_string};
+use parser::{parse, AccessController}
 use std::os::raw::{c_char, c_void};
 
 struct Module;
@@ -33,6 +34,8 @@ impl http::HTTPModule for Module {
 #[derive(Debug, Default)]
 struct ModuleConfig {
     enable: bool,
+    robotsTxtPath: String,
+    robotsTxtContents: String,
 }
 
 #[no_mangle]
@@ -99,6 +102,8 @@ impl http::Merge for ModuleConfig {
         if prev.enable {
             self.enable = true;
         };
+        // TODO: work out lifecycle of module configuration
+        // TODO: re-read the contents of robots.txt when NGINX is told to re-read configuration
         Ok(())
     }
 }
@@ -111,14 +116,34 @@ http_request_handler!(curl_access_handler, |request: &mut http::Request| {
 
     match co.enable {
         true => {
-            if request
-                .user_agent()
-                .is_some_and(|ua| ua.as_bytes().starts_with(b"curl"))
-            {
-                http::HTTPStatus::FORBIDDEN.into()
-            } else {
-                core::Status::NGX_DECLINED
+            let accessController = parse(co.robotsTxtContents).expect("invalid robots.txt content");
+            match request.path.to_str() {
+                Ok(path) => 
+                match request.user_agent.to_str() /*Result<&str, Utf8Error>*/{
+                    Ok(ua) => {
+                        if accessController(ua, path) {
+                            core::Status::NGX_DECLINED
+                        } else {
+                            http::HTTPStatus::FORBIDDEN.into()
+                        }
+                    }
+                    Error(err) => {
+                        http::HTTPStatus::FORBIDDEN.into()
+                    }
+                }
+                Error(err) => {
+                    http::HTTPStatus::FORBIDDEN.into()
+                }
             }
+            // (request.user_agent.to_str())if accessController
+            // if request
+            //     .user_agent()
+            //     .is_some_and(|ua| ua.as_bytes().starts_with(b"curl"))
+            // {
+            //     http::HTTPStatus::FORBIDDEN.into()
+            // } else {
+            //     core::Status::NGX_DECLINED
+            // }
         }
         false => core::Status::NGX_DECLINED,
     }
