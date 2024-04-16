@@ -126,7 +126,7 @@ http_request_handler!(curl_access_handler, |request: &mut http::Request| {
                                 Ok(ua) => {
                                     let mut matcher = DefaultMatcher::default();
                                     ngx_log_debug_http!(request, "matching user agent {} and path {} against robots.txt contents: \n{}", ua, path, co.robots_txt_contents);
-                                    let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, ua, path);
+                                    let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, extract_user_agent(ua), path);
                                     if allowed {
                                         ngx_log_debug_http!(request, "robots.txt allowed");
                                         core::Status::NGX_DECLINED
@@ -180,4 +180,18 @@ extern "C" fn ngx_http_curl_commands_set_enable(
     };
 
     std::ptr::null_mut()
+}
+
+/// Extract the matchable part of a user agent string, essentially stopping at
+/// the first invalid character.
+/// Example: 'Googlebot/2.1' becomes 'Googlebot'
+fn extract_user_agent(user_agent: &str) -> &str {
+    // Allowed characters in user-agent are [a-zA-Z_-].
+    if let Some(end) =
+        user_agent.find(|c: char| !(c.is_ascii_alphabetic() || c == '-' || c == '_'))
+    {
+        &user_agent[..end]
+    } else {
+        user_agent
+    }
 }
