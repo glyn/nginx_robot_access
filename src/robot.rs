@@ -7,7 +7,7 @@ use ngx::ffi::{
 use ngx::http::MergeConfigError;
 use ngx::{core, core::Status, http, http::HTTPModule};
 use ngx::{http_request_handler, ngx_log_debug_http, ngx_modules, ngx_null_command, ngx_string};
-use parser::{parse, AccessController}
+use robotstxt::DefaultMatcher;
 use std::os::raw::{c_char, c_void};
 
 struct Module;
@@ -34,8 +34,8 @@ impl http::HTTPModule for Module {
 #[derive(Debug, Default)]
 struct ModuleConfig {
     enable: bool,
-    robotsTxtPath: String,
-    robotsTxtContents: String,
+    robots_txt_path: String,
+    robots_txt_contents: String,
 }
 
 #[no_mangle]
@@ -116,34 +116,34 @@ http_request_handler!(curl_access_handler, |request: &mut http::Request| {
 
     match co.enable {
         true => {
-            let accessController = parse(co.robotsTxtContents).expect("invalid robots.txt content");
-            match request.path.to_str() {
+            match request.path().to_str() {
                 Ok(path) => 
-                match request.user_agent.to_str() /*Result<&str, Utf8Error>*/{
-                    Ok(ua) => {
-                        if accessController(ua, path) {
-                            core::Status::NGX_DECLINED
-                        } else {
-                            http::HTTPStatus::FORBIDDEN.into()
-                        }
+                    match request.user_agent() {
+                        Some(user_agent) =>
+                            match user_agent.to_str() {
+                                Ok(ua) => {
+                                    let mut matcher = DefaultMatcher::default();
+                                    let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, ua, path);
+                                    if allowed {
+                                        core::Status::NGX_DECLINED
+                                    } else {
+                                        http::HTTPStatus::FORBIDDEN.into()
+                                    }
+                                }
+                                Err(err) => {
+                                    ngx_log_debug_http!(request, "user agent conversion to string failed: {}", err);
+                                    http::HTTPStatus::FORBIDDEN.into()
+                                }
+                            }
+
+                        None => core::Status::NGX_DECLINED
+    
                     }
-                    Error(err) => {
-                        http::HTTPStatus::FORBIDDEN.into()
-                    }
-                }
-                Error(err) => {
+                Err(err) => {
+                    ngx_log_debug_http!(request, "path conversion to string failed: {}", err);
                     http::HTTPStatus::FORBIDDEN.into()
                 }
             }
-            // (request.user_agent.to_str())if accessController
-            // if request
-            //     .user_agent()
-            //     .is_some_and(|ua| ua.as_bytes().starts_with(b"curl"))
-            // {
-            //     http::HTTPStatus::FORBIDDEN.into()
-            // } else {
-            //     core::Status::NGX_DECLINED
-            // }
         }
         false => core::Status::NGX_DECLINED,
     }

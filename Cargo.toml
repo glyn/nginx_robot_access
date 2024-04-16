@@ -16,5 +16,6 @@ path = "src/robot.rs"
 
 [dependencies]
 ngx = { git = "https://github.com/glyn/ngx-rust",tag="pre-0.5.0"}
+robotstxt = "0.3.0"
 tokio = { version = "1.33.0", features = ["full"] }
 
