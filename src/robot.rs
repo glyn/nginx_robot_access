@@ -132,7 +132,6 @@ http_request_handler!(curl_access_handler, |request: &mut http::Request| {
                                         core::Status::NGX_DECLINED
                                     } else {
                                         ngx_log_debug_http!(request, "robots.txt disallowed");
-
                                         http::HTTPStatus::FORBIDDEN.into()
                                     }
                                 }
