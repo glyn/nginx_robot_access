@@ -8,6 +8,7 @@ use ngx::http::MergeConfigError;
 use ngx::{core, core::Status, http, http::HTTPModule};
 use ngx::{http_request_handler, ngx_log_debug_http, ngx_modules, ngx_null_command, ngx_string};
 use robotstxt::DefaultMatcher;
+use std::fs;
 use std::os::raw::{c_char, c_void};
 
 struct Module;
@@ -102,6 +103,7 @@ impl http::Merge for ModuleConfig {
         if prev.enable {
             self.enable = true;
         };
+        self.robots_txt_contents = fs::read_to_string("/home/glyn/dev/rust/nginx_robot_access/scratch/robots.txt").unwrap();
         // TODO: work out lifecycle of module configuration
         // TODO: re-read the contents of robots.txt when NGINX is told to re-read configuration
         Ok(())
@@ -123,10 +125,14 @@ http_request_handler!(curl_access_handler, |request: &mut http::Request| {
                             match user_agent.to_str() {
                                 Ok(ua) => {
                                     let mut matcher = DefaultMatcher::default();
+                                    ngx_log_debug_http!(request, "matching user agent {} and path {} against robots.txt contents: \n{}", ua, path, co.robots_txt_contents);
                                     let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, ua, path);
                                     if allowed {
+                                        ngx_log_debug_http!(request, "robots.txt allowed");
                                         core::Status::NGX_DECLINED
                                     } else {
+                                        ngx_log_debug_http!(request, "robots.txt disallowed");
+
                                         http::HTTPStatus::FORBIDDEN.into()
                                     }
                                 }
@@ -136,7 +142,10 @@ http_request_handler!(curl_access_handler, |request: &mut http::Request| {
                                 }
                             }
 
-                        None => core::Status::NGX_DECLINED
+                        None => {
+                            ngx_log_debug_http!(request, "user agent not present in request");
+                            core::Status::NGX_DECLINED
+                        }
     
                     }
                 Err(err) => {
