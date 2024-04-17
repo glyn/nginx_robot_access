@@ -195,3 +195,21 @@ fn extract_user_agent(user_agent: &str) -> &str {
         user_agent
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_extract_user_agent() {
+        // Example: 'Googlebot/2.1' becomes 'Googlebot'
+        assert_eq!("Googlebot", extract_user_agent("Googlebot/2.1"));
+        assert_eq!("Googlebot", extract_user_agent("Googlebot"));
+        assert_eq!("Googlebot-", extract_user_agent("Googlebot-"));
+        assert_eq!("Googlebot_", extract_user_agent("Googlebot_"));
+        assert_eq!("Googlebot_", extract_user_agent("Googlebot_2.1"));
+        assert_eq!("", extract_user_agent("1Googlebot_2.1"));
+        assert_eq!("Goo", extract_user_agent("Goo1glebot_2.1"));
+        assert_eq!("curl", extract_user_agent("curl/8.7.1"));
+    }
+}
