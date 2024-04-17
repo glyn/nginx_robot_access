@@ -27,24 +27,23 @@ impl http::HTTPModule for Module {
             return core::Status::NGX_ERROR.into();
         }
         // set an Access phase handler
-        *h = Some(curl_access_handler);
+        *h = Some(robots_access_handler);
         core::Status::NGX_OK.into()
     }
 }
 
 #[derive(Debug, Default)]
 struct ModuleConfig {
-    enable: bool,
     robots_txt_path: String,
     robots_txt_contents: String,
 }
 
 #[no_mangle]
-static mut ngx_http_curl_commands: [ngx_command_t; 2] = [
+static mut ngx_http_robots_commands: [ngx_command_t; 2] = [
     ngx_command_t {
-        name: ngx_string!("curl"),
+        name: ngx_string!("robots_txt_path"),
         type_: (NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1) as ngx_uint_t,
-        set: Some(ngx_http_curl_commands_set_enable),
+        set: Some(ngx_http_robots_commands_set_robots_txt_path),
         conf: NGX_RS_HTTP_LOC_CONF_OFFSET,
         offset: 0,
         post: std::ptr::null_mut(),
@@ -53,7 +52,7 @@ static mut ngx_http_curl_commands: [ngx_command_t; 2] = [
 ];
 
 #[no_mangle]
-static ngx_http_curl_module_ctx: ngx_http_module_t = ngx_http_module_t {
+static ngx_http_robots_module_ctx: ngx_http_module_t = ngx_http_module_t {
     preconfiguration: Some(Module::preconfiguration),
     postconfiguration: Some(Module::postconfiguration),
     create_main_conf: Some(Module::create_main_conf),
@@ -64,10 +63,10 @@ static ngx_http_curl_module_ctx: ngx_http_module_t = ngx_http_module_t {
     merge_loc_conf: Some(Module::merge_loc_conf),
 };
 
-ngx_modules!(ngx_http_curl_module);
+ngx_modules!(ngx_http_robots_module);
 
 #[no_mangle]
-pub static mut ngx_http_curl_module: ngx_module_t = ngx_module_t {
+pub static mut ngx_http_robots_module: ngx_module_t = ngx_module_t {
     ctx_index: ngx_uint_t::max_value(),
     index: ngx_uint_t::max_value(),
     name: std::ptr::null_mut(),
@@ -76,8 +75,8 @@ pub static mut ngx_http_curl_module: ngx_module_t = ngx_module_t {
     version: nginx_version as ngx_uint_t,
     signature: NGX_RS_MODULE_SIGNATURE.as_ptr() as *const c_char,
 
-    ctx: &ngx_http_curl_module_ctx as *const _ as *mut _,
-    commands: unsafe { &ngx_http_curl_commands[0] as *const _ as *mut _ },
+    ctx: &ngx_http_robots_module_ctx as *const _ as *mut _,
+    commands: unsafe { &ngx_http_robots_commands[0] as *const _ as *mut _ },
     type_: NGX_HTTP_MODULE as ngx_uint_t,
 
     init_master: None,
@@ -100,65 +99,65 @@ pub static mut ngx_http_curl_module: ngx_module_t = ngx_module_t {
 
 impl http::Merge for ModuleConfig {
     fn merge(&mut self, prev: &ModuleConfig) -> Result<(), MergeConfigError> {
-        if prev.enable {
-            self.enable = true;
-        };
-        self.robots_txt_contents = fs::read_to_string("/home/glyn/dev/rust/nginx_robot_access/scratch/robots.txt").unwrap();
-        // TODO: work out lifecycle of module configuration
-        // TODO: re-read the contents of robots.txt when NGINX is told to re-read configuration
+        // If robots.txt path is not set at this level, inherit the setting from the higher level
+        if self.robots_txt_path == "" {
+            self.robots_txt_path = prev.robots_txt_path.to_string();
+        }
+        self.robots_txt_contents = "".to_string(); // default value
+        // If robots.txt path has been set, store the contents of the file
+        if self.robots_txt_path != "" {
+            self.robots_txt_contents = fs::read_to_string(&self.robots_txt_path).unwrap();
+        }
         Ok(())
     }
 }
 
-http_request_handler!(curl_access_handler, |request: &mut http::Request| {
-    let co = unsafe { request.get_module_loc_conf::<ModuleConfig>(&ngx_http_curl_module) };
+http_request_handler!(robots_access_handler, |request: &mut http::Request| {
+    let co = unsafe { request.get_module_loc_conf::<ModuleConfig>(&ngx_http_robots_module) };
     let co = co.expect("module config is none");
 
-    ngx_log_debug_http!(request, "curl module enabled: {}", co.enable);
-
-    match co.enable {
-        true => {
-            match request.path().to_str() {
-                Ok(path) => 
-                    match request.user_agent() {
-                        Some(user_agent) =>
-                            match user_agent.to_str() {
-                                Ok(ua) => {
-                                    let mut matcher = DefaultMatcher::default();
-                                    ngx_log_debug_http!(request, "matching user agent {} and path {} against robots.txt contents: \n{}", ua, path, co.robots_txt_contents);
-                                    let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, extract_user_agent(ua), path);
-                                    if allowed {
-                                        ngx_log_debug_http!(request, "robots.txt allowed");
-                                        core::Status::NGX_DECLINED
-                                    } else {
-                                        ngx_log_debug_http!(request, "robots.txt disallowed");
-                                        http::HTTPStatus::FORBIDDEN.into()
-                                    }
-                                }
-                                Err(err) => {
-                                    ngx_log_debug_http!(request, "user agent conversion to string failed: {}", err);
+    if co.robots_txt_contents != "" {
+        match request.path().to_str() {
+            Ok(path) =>
+                match request.user_agent() {
+                    Some(user_agent) =>
+                        match user_agent.to_str() {
+                            Ok(ua) => {
+                                let mut matcher = DefaultMatcher::default();
+                                ngx_log_debug_http!(request, "matching user agent {} and path {} against robots.txt contents: \n{}", ua, path, co.robots_txt_contents);
+                                let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, extract_user_agent(ua), path);
+                                if allowed {
+                                    ngx_log_debug_http!(request, "robots.txt allowed");
+                                    core::Status::NGX_DECLINED
+                                } else {
+                                    ngx_log_debug_http!(request, "robots.txt disallowed");
                                     http::HTTPStatus::FORBIDDEN.into()
                                 }
                             }
-
-                        None => {
-                            ngx_log_debug_http!(request, "user agent not present in request");
-                            core::Status::NGX_DECLINED
+                            Err(err) => {
+                                ngx_log_debug_http!(request, "user agent conversion to string failed: {}", err);
+                                http::HTTPStatus::FORBIDDEN.into()
+                            }
                         }
-    
+
+                    None => {
+                        ngx_log_debug_http!(request, "user agent not present in request");
+                        core::Status::NGX_DECLINED
                     }
-                Err(err) => {
-                    ngx_log_debug_http!(request, "path conversion to string failed: {}", err);
-                    http::HTTPStatus::FORBIDDEN.into()
+    
                 }
+            Err(err) => {
+                ngx_log_debug_http!(request, "path conversion to string failed: {}", err);
+                http::HTTPStatus::FORBIDDEN.into()
             }
         }
-        false => core::Status::NGX_DECLINED,
+    } else {
+        core::Status::NGX_DECLINED
     }
 });
 
 #[no_mangle]
-extern "C" fn ngx_http_curl_commands_set_enable(
+extern "C" fn ngx_http_robots_commands_set_robots_txt_path(
     cf: *mut ngx_conf_t,
     _cmd: *mut ngx_command_t,
     conf: *mut c_void,
@@ -167,16 +166,7 @@ extern "C" fn ngx_http_curl_commands_set_enable(
         let conf = &mut *(conf as *mut ModuleConfig);
         let args = (*(*cf).args).elts as *mut ngx_str_t;
 
-        let val = (*args.add(1)).to_str();
-
-        // set default value optionally
-        conf.enable = false;
-
-        if val.len() == 2 && val.eq_ignore_ascii_case("on") {
-            conf.enable = true;
-        } else if val.len() == 3 && val.eq_ignore_ascii_case("off") {
-            conf.enable = false;
-        }
+        conf.robots_txt_path = (*args.add(1)).to_str().to_string();
     };
 
     std::ptr::null_mut()
