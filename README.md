@@ -21,7 +21,7 @@ NGX_VERSION=1.22.1 cargo build --release
 
 This will build a shared library in `target/release`.
 
-## Configuration
+## Configuring
 
 To enable this module, it must be loaded in the NGINX configuration, e.g.:
 ~~~
@@ -49,6 +49,13 @@ http {
             robots_txt_path /etc/robots.txt;
         }
 ...
+~~~
+
+## Validating
+
+To make sure the module is working correctly, use `curl` to access your site and specify a user agent that your `robots.txt` file denies access for, e.g.:
+~~~
+curl -A "GPTBot" https://example.org
 ~~~
 
 ## Debugging
