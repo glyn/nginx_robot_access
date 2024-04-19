@@ -12,9 +12,11 @@ See the following instructions for how to build and configure the module.
 ## Building
 
 This module is written in Rust. After [installing Rust](https://www.rust-lang.org/tools/install),
-the module may be built by issuing the following command in the root directory of a clone of this repository:
+the module may be built using `cargo`, but **must** be built for the version of NGINX that is in use.
+
+For example, to build the module for NGINX version 1.22.1, issue the following command in the root directory of a clone of this repository:
 ~~~
-cargo build --release
+NGX_VERSION=1.22.1 cargo build --release
 ~~~
 
 This will build a shared library in `target/release`.
