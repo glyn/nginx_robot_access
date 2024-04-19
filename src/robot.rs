@@ -1,8 +1,9 @@
+// This module was based closely on the curl example module from ngx-rust.
 use ngx::ffi::{
     nginx_version, ngx_array_push, ngx_command_t, ngx_conf_t, ngx_http_core_module, ngx_http_handler_pt,
     ngx_http_module_t, ngx_http_phases_NGX_HTTP_ACCESS_PHASE, ngx_http_request_t, ngx_int_t, ngx_module_t, ngx_str_t,
-    ngx_uint_t, NGX_CONF_TAKE1, NGX_HTTP_LOC_CONF, NGX_HTTP_MODULE, NGX_RS_HTTP_LOC_CONF_OFFSET,
-    NGX_RS_MODULE_SIGNATURE,
+    ngx_uint_t, NGX_CONF_TAKE1, NGX_HTTP_MAIN_CONF, NGX_HTTP_SRV_CONF, NGX_HTTP_LOC_CONF, NGX_HTTP_MODULE,
+    NGX_RS_HTTP_LOC_CONF_OFFSET, NGX_RS_MODULE_SIGNATURE,
 };
 use ngx::http::MergeConfigError;
 use ngx::{core, core::Status, http, http::HTTPModule};
@@ -36,15 +37,21 @@ impl http::HTTPModule for Module {
 
 #[derive(Debug, Default)]
 struct ModuleConfig {
-    robots_txt_path: String,
-    robots_txt_contents: String,
+    robots_txt_path: String, // absolute file path of robots.txt
+    robots_txt_contents: String, // the contents of robots.txt, read by this module from robots_txt_path
 }
 
 #[no_mangle]
 static mut ngx_http_robots_commands: [ngx_command_t; 2] = [
+    // define the robots_txt_path configuration directive
     ngx_command_t {
         name: ngx_string!("robots_txt_path"),
-        type_: (NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1) as ngx_uint_t,
+        // The directive may appear in the http, server, or location block and takes
+        // a single argument (the absolute file path of robots.txt). 
+        type_: ( NGX_HTTP_MAIN_CONF
+               | NGX_HTTP_SRV_CONF
+               | NGX_HTTP_LOC_CONF
+               | NGX_CONF_TAKE1 ) as ngx_uint_t,
         set: Some(ngx_http_robots_commands_set_robots_txt_path),
         conf: NGX_RS_HTTP_LOC_CONF_OFFSET,
         offset: 0,
@@ -101,15 +108,21 @@ pub static mut ngx_http_robots_module: ngx_module_t = ngx_module_t {
 
 impl http::Merge for ModuleConfig {
     fn merge(&mut self, prev: &ModuleConfig) -> Result<(), MergeConfigError> {
-        // If robots.txt path is not set at this level, inherit the setting from the higher level
+        // If robots.txt path is not set at this level, inherit the setting from the higher level.
+        // This means that configuring the directive in the location block overrides any configuration
+        // of the directive in the server block and that configuring the directive in the server block
+        // overrides any configuration in the http block.
         if self.robots_txt_path == "" {
             self.robots_txt_path = prev.robots_txt_path.to_string();
         }
+        
         self.robots_txt_contents = "".to_string(); // default value
+        
         // If robots.txt path has been set, store the contents of the file
         if self.robots_txt_path != "" {
             self.robots_txt_contents = fs::read_to_string(&self.robots_txt_path).unwrap();
         }
+
         Ok(())
     }
 }
@@ -179,9 +192,11 @@ extern "C" fn ngx_http_robots_commands_set_robots_txt_path(
     std::ptr::null_mut()
 }
 
-/// Extract the matchable part of a user agent string, essentially stopping at
-/// the first invalid character.
-/// Example: 'Googlebot/2.1' becomes 'Googlebot'
+// Extract the matchable part of a user agent string, essentially stopping at
+// the first invalid character.
+// Example: 'Googlebot/2.1' becomes 'Googlebot'
+//
+// This function and its unit tests were inherited from robotstxt. 
 fn extract_user_agent(user_agent: &str) -> &str {
     // Allowed characters in user-agent are [a-zA-Z_-].
     if let Some(end) =
