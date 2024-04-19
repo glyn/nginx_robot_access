@@ -11,6 +11,8 @@ use robotstxt::DefaultMatcher;
 use std::fs;
 use std::os::raw::{c_char, c_void};
 
+static ROBOTS_TXT_REQUEST_PATH : &str = "/robots.txt";
+
 struct Module;
 
 impl http::HTTPModule for Module {
@@ -119,8 +121,14 @@ http_request_handler!(robots_access_handler, |request: &mut http::Request| {
     if co.robots_txt_contents != "" {
         match request.path().to_str() {
             Ok(path) =>
-                match request.user_agent() {
-                    Some(user_agent) =>
+                // Always allow robots.txt to be accessed -- this gives web crawlers the option
+                // of obeying robots.txt. (Any other files which should always be accessed should
+                // be allowed via robots.txt.)
+                if path == ROBOTS_TXT_REQUEST_PATH {
+                    core::Status::NGX_DECLINED
+                } else {
+                    match request.user_agent() {
+                        Some(user_agent) =>
                         match user_agent.to_str() {
                             Ok(ua) => {
                                 let mut matcher = DefaultMatcher::default();
@@ -139,12 +147,11 @@ http_request_handler!(robots_access_handler, |request: &mut http::Request| {
                                 http::HTTPStatus::FORBIDDEN.into()
                             }
                         }
-
-                    None => {
-                        ngx_log_debug_http!(request, "user agent not present in request");
-                        core::Status::NGX_DECLINED
+                        None => {
+                            ngx_log_debug_http!(request, "user agent not present in request");
+                            core::Status::NGX_DECLINED
+                        }
                     }
-    
                 }
             Err(err) => {
                 ngx_log_debug_http!(request, "path conversion to string failed: {}", err);
