@@ -144,9 +144,8 @@ http_request_handler!(robots_access_handler, |request: &mut http::Request| {
                         Some(user_agent) =>
                         match user_agent.to_str() {
                             Ok(ua) => {
-                                let mut matcher = DefaultMatcher::default();
                                 ngx_log_debug_http!(request, "matching user agent {} and path {} against robots.txt contents: \n{}", ua, path, co.robots_txt_contents);
-                                let allowed = matcher.one_agent_allowed_by_robots(&co.robots_txt_contents, extract_user_agent(ua), path);
+                                let allowed = allow_access(&co.robots_txt_contents, ua, path);
                                 if allowed {
                                     ngx_log_debug_http!(request, "robots.txt allowed");
                                     core::Status::NGX_DECLINED
@@ -175,6 +174,20 @@ http_request_handler!(robots_access_handler, |request: &mut http::Request| {
         core::Status::NGX_DECLINED
     }
 });
+
+// Determine whether the given user agent is allowed to access the given path according
+// to the given content of robots.txt. Access is allowed if and only if true is returned. 
+fn allow_access(robots_txt_contents : &str, user_agent : &str, path : &str) -> bool {
+    // Always allow robots.txt to be accessed -- this gives web crawlers the option
+    // of obeying robots.txt. (Any other files which should always be accessed should
+    // be allowed via robots.txt.)
+    if path == ROBOTS_TXT_REQUEST_PATH {
+        true
+    } else {
+        let mut matcher = DefaultMatcher::default();
+        matcher.one_agent_allowed_by_robots(&robots_txt_contents, extract_user_agent(user_agent), path)
+    }
+} 
 
 #[no_mangle]
 extern "C" fn ngx_http_robots_commands_set_robots_txt_path(
@@ -223,5 +236,16 @@ mod test {
         assert_eq!("", extract_user_agent("1Googlebot_2.1"));
         assert_eq!("Goo", extract_user_agent("Goo1glebot_2.1"));
         assert_eq!("curl", extract_user_agent("curl/8.7.1"));
+    }
+    
+    #[test]
+    fn test_allow_access() {
+        assert_eq!(true, allow_access("User-agent: Xbot\nDisallow: /", "XBot/3.2.1", "/robots.txt"));
+        assert_eq!(false, allow_access("User-agent: Xbot\nDisallow: /", "XBot/3.2.1", "/"));
+        assert_eq!(true, allow_access("User-agent: Xbot\nDisallow: /", "YBot/3.2.1", "/"));
+        assert_eq!(false, allow_access("User-agent: Xbot\nDisallow: /z", "XBot/3.2.1", "/z"));
+        assert_eq!(true, allow_access("User-agent: Xbot\nDisallow: /z", "XBot/3.2.1", "/"));
+        assert_eq!(true, allow_access("User-agent: Xbot\nDisallow: /z", "XBot/3.2.1", "/w"));
+        assert_eq!(false, allow_access("User-agent: Xbot\nDisallow: /", "XBot", "/"));
     }
 }
