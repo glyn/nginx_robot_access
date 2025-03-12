@@ -247,5 +247,6 @@ mod test {
         assert_eq!(true, allow_access("User-agent: Xbot\nDisallow: /z", "XBot/3.2.1", "/"));
         assert_eq!(true, allow_access("User-agent: Xbot\nDisallow: /z", "XBot/3.2.1", "/w"));
         assert_eq!(false, allow_access("User-agent: Xbot\nDisallow: /", "XBot", "/"));
+        assert_eq!(false, allow_access("User-agent: Xbot\nDisallow: /", "xbot", "/"));
     }
 }
