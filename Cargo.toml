@@ -1,6 +1,6 @@
 [package]
 name = "nginx_robot_access"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "NGINX robot access module"
 categories = ["access-control", "network-programming"]
