@@ -15,21 +15,26 @@ This module is written in Rust. After [installing Rust](https://www.rust-lang.or
 the module may be built using `cargo`, but **must** be built for the version of NGINX that is in use.
 
 For example, to build the module for NGINX version 1.22.1, issue the following command in the root directory of a clone of this repository:
-~~~
+
+~~~terminal
 NGX_VERSION=1.22.1 cargo build --release
 ~~~
+
+With gcc v15 you may also need to set the environment variable `CFLAGS="-Wno-error=unterminated-string-initialization"` to avoid a warning failing the build.
 
 This will build a shared library in `target/release`.
 
 ## Configuring
 
 To enable this module, it must be loaded in the NGINX configuration, e.g.:
-~~~
+
+~~~config
 load_module /var/lib/libnginx_robot_access.so;
 ~~~
 
 For this module to work correctly, the absolute file path of `robots.txt` must be configured in the NGINX configuration using the directive `robots_txt_path`. The directive takes a single argument: the absolute file path of `robots.txt`, e.g.:
-~~~
+
+~~~config
 robots_txt_path /etc/robots.txt;
 ~~~
 
@@ -37,7 +42,8 @@ The directive may be specified in any of the `http`, `server`, or `location` con
 Configuring the directive in the `location` block overrides any configuration of the directive in the `server` block. Configuring the directive in the `server` block overrides any configuration in the `http` block.
 
 For example, here's a simple configuration that enables the module and sets the path to `/etc/robots.txt`:
-~~~
+
+~~~config
 load_module /var/lib/libnginx_robot_access.so;
 ...
 http {
@@ -54,14 +60,16 @@ http {
 ## Validating
 
 To make sure the module is working correctly, use `curl` to access your site and specify a user agent that your `robots.txt` file denies access for, e.g.:
-~~~
+
+~~~terminal
 curl -A "GPTBot" https://example.org
 ~~~
 
 ## Debugging
 
 Some debug logging is included in the module. To use this, enable debug logging in the NGINX configuration, e.g.:
-~~~
+
+~~~config
 error_log  logs/error.log debug;
 ~~~
 

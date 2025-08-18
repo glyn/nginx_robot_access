@@ -14,7 +14,7 @@ This is a rough outline of what a contributor's workflow looks like:
 
 Example:
 
-``` shell
+```terminal
 git remote add upstream https://github.com/glyn/nginx_robot_access.git
 git checkout -b my-new-feature main
 git commit -a
@@ -30,15 +30,17 @@ Many editors support that file natively. Others require a plugin, see https://ed
 
 Be sure to run any tests:
 
-``` shell
+```terminal
 cargo test
 ```
+
+With gcc v15 you may need to set the environment variable `CFLAGS="-Wno-error=unterminated-string-initialization"` to avoid a warning failing the build.
 
 ### Staying in sync with upstream
 
 When your branch gets out of sync with the glyn/nginx_robot_access/main branch, use the following to update:
 
-``` shell
+```terminal
 git checkout my-new-feature
 git fetch -a
 git pull --rebase upstream main
